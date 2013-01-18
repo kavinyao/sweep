@@ -6,8 +6,8 @@ Sweep is sweet php template.
 
 1. add template comment[Done]
 2. add filter
-3. distinguish attribute access (->) from indexing ([])
-4. appropriate comments
+3. distinguish attribute access (->) from indexing ([])[Done]
+4. appropriate comments[Done]
 5. how to invoke?
 6. format output for readability[Done]
 7. documentation/usage examples

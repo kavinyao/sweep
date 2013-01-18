@@ -1,6 +1,7 @@
 <?php
 // Template Element Definition
-define('OBJECT_ATTRIBUTE_SEPARATOR', '.');
+define('INDEX_SEPARATOR', '.');
+define('ATTRIBUTE_SEPARATOR', ':');
 define('BLOCK_TAG_START', '{%');
 define('BLOCK_TAG_END', '%}');
 define('VARIABLE_TAG_START', '{{');
@@ -23,19 +24,44 @@ abstract class Node {
     );
 
     function __construct($content) {
+        // trim $content by default
+        // this is good for Block and Variable Tags
         $this->content = trim($content);
     }
 
+    /**
+     * Compile template expression to PHP expression.
+     * `INDEX_SEPARATOR<key>` is mapped to `[key]` or `['key']` based on
+     * whether key is consisted of digits
+     * `ATTRIBUTE_SEPARATOR<attr>` is mapped to `->attr`
+     * Predefined special variables like `loop.index` are handled as well.
+     */
     function compile_expression($expression) {
-        $attribute_pattern = sprintf('#%s#', preg_quote(OBJECT_ATTRIBUTE_SEPARATOR));
+        $attribute_pattern = sprintf('#(%s|%s)([^%s%s]+)#',
+            preg_quote(INDEX_SEPARATOR),
+            preg_quote(ATTRIBUTE_SEPARATOR),
+            INDEX_SEPARATOR,
+            ATTRIBUTE_SEPARATOR
+        );
 
         if(isset($this->special_variables[$expression]))
             return $this->special_variables[$expression];
 
-        $compiled_expression = preg_replace($attribute_pattern, '->', $expression);
+        $compiled_expression = preg_replace_callback($attribute_pattern, function($matches) {
+            if($matches[1] === INDEX_SEPARATOR)
+                return preg_match('#\d+#', $matches[2]) ? "[{$matches[2]}]" : "['{$matches[2]}']";
+            else
+                // must be ATTRIBUTE_SEPARATOR
+                return "->{$matches[2]}";
+        }, $expression);
+
         return "\${$compiled_expression}";
     }
 
+    /**
+     * Compile template statement to PHP statement.
+     * Left for sub-classes to implement.
+     */
     abstract function compile();
 }
 
@@ -48,23 +74,27 @@ class VariableNode extends Node {
 }
 
 class BlockNode extends Node {
+    private $simple_blocks = array(
+        'endfor' => 'endforeach;',
+        'endif' => 'endif;',
+        'else' => 'else:',
+    );
+
     function compile() {
-        // Ending blocks first
-        if(str_starts_with($this->content, 'endfor'))
-            return '<?php endforeach; ?>';
-        if(str_starts_with($this->content, 'endif'))
-            return '<?php endif; ?>';
-        if(str_starts_with($this->content, 'else'))
-            return '<?php else: ?>';
+        // simple blocks are handled first
+        $simple_block = $this->simple_blocks[$this->content];
+        if($simple_block)
+            return "<?php $simple_block ?>";
 
         $parts = preg_split('#\s+#', $this->content);
         if(count($parts) === 4 && $parts[0] === 'for' && $parts[2] === 'in')
+            // no $ leading first %s as compile_expression handles that
             return sprintf('<?php foreach(%s as $loop_index => $%s): ?>',
                 $this->compile_expression($parts[3]),
                 $parts[1]
             );
         else if(count($parts) === 2 && $parts[0] === 'if')
-            return sprintf('<?php if(%s): ?>' . PHP_EOL, $this->compile_expression($parts[1]));
+            return sprintf('<?php if(%s): ?>', $this->compile_expression($parts[1]));
         else
             throw new Exception;
     }
@@ -78,7 +108,7 @@ class CommentNode extends Node {
 
 class TextNode extends Node {
     /**
-     * Keep text verbatim.
+     * No trimming to keep text verbatim.
      */
     function __construct($content) {
         $this->content = $content;
@@ -89,6 +119,10 @@ class TextNode extends Node {
     }
 }
 
+/**
+ * Translate $template_string to PHP-HTML string.
+ * @param string $template_string string in sweep template syntax
+ */
 function sweep($template_string) {
     $tag_pattern = sprintf('@(%s.*?%s|%s.*?%s|%s.*?%s)@',
         preg_quote(BLOCK_TAG_START),
@@ -99,11 +133,12 @@ function sweep($template_string) {
         preg_quote(COMMENT_TAG_END)
     );
 
+    // split template string to template tags and non-tags
     $parts = preg_split($tag_pattern, $template_string, -1, PREG_SPLIT_DELIM_CAPTURE);
 
-    $in_tag = false;
-    $nodes = array_map(function($part) use (&$in_tag) {
-        if($in_tag) {
+    $is_tag = false;
+    $nodes = array_map(function($part) use (&$is_tag) {
+        if($is_tag) {
             if(str_starts_with($part, VARIABLE_TAG_START))
                 $node = new VariableNode(substr($part, VARIABLE_TAG_START_LEN, strlen($part)-VARIABLE_TAG_LEN));
             else if(str_starts_with($part, BLOCK_TAG_START))
@@ -114,7 +149,9 @@ function sweep($template_string) {
             $node = new TextNode($part);
         }
 
-        $in_tag = !$in_tag;
+        // toggle flag since tags and non-tags are interlaced one after another
+        $is_tag = !$is_tag;
+
         return $node;
     }, $parts);
 
