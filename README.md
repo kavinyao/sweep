@@ -9,7 +9,7 @@ Sweep is sweet php template.
 3. distinguish attribute access (->) from indexing ([])
 4. appropriate comments
 5. how to invoke?
-6. format output for readability
+6. format output for readability[Done]
 7. documentation/usage examples
 8. improve performance
 9. use `preg_replace` instead of `preg_split`?

@@ -77,6 +77,13 @@ class CommentNode extends Node {
 }
 
 class TextNode extends Node {
+    /**
+     * Keep text verbatim.
+     */
+    function __construct($content) {
+        $this->content = $content;
+    }
+
     function compile() {
         return $this->content;
     }
