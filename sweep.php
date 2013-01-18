@@ -5,11 +5,15 @@ define('BLOCK_TAG_START', '{%');
 define('BLOCK_TAG_END', '%}');
 define('VARIABLE_TAG_START', '{{');
 define('VARIABLE_TAG_END', '}}');
+define('COMMENT_TAG_START', '{#');
+define('COMMENT_TAG_END', '#}');
 
 define('VARIABLE_TAG_START_LEN', strlen(VARIABLE_TAG_START));
 define('VARIABLE_TAG_LEN', strlen(VARIABLE_TAG_START)+strlen(VARIABLE_TAG_END));
 define('BLOCK_TAG_START_LEN', strlen(BLOCK_TAG_START));
 define('BLOCK_TAG_LEN', strlen(BLOCK_TAG_START)+strlen(BLOCK_TAG_END));
+define('COMMENT_TAG_START_LEN', strlen(COMMENT_TAG_START));
+define('COMMENT_TAG_LEN', strlen(COMMENT_TAG_START)+strlen(COMMENT_TAG_END));
 
 // Node hierarchy
 abstract class Node {
@@ -66,19 +70,26 @@ class BlockNode extends Node {
     }
 }
 
+class CommentNode extends Node {
+    function compile() {
+        return "<?php // {$this->content} ?>";
+    }
+}
+
 class TextNode extends Node {
     function compile() {
         return $this->content;
     }
 }
 
-
 function sweep($template_string) {
-    $tag_pattern = sprintf('#(%s.*?%s|%s.*?%s)#',
+    $tag_pattern = sprintf('@(%s.*?%s|%s.*?%s|%s.*?%s)@',
         preg_quote(BLOCK_TAG_START),
         preg_quote(BLOCK_TAG_END),
         preg_quote(VARIABLE_TAG_START),
-        preg_quote(VARIABLE_TAG_END)
+        preg_quote(VARIABLE_TAG_END),
+        preg_quote(COMMENT_TAG_START),
+        preg_quote(COMMENT_TAG_END)
     );
 
     $parts = preg_split($tag_pattern, $template_string, -1, PREG_SPLIT_DELIM_CAPTURE);
@@ -90,6 +101,8 @@ function sweep($template_string) {
                 $node = new VariableNode(substr($part, VARIABLE_TAG_START_LEN, strlen($part)-VARIABLE_TAG_LEN));
             else if(str_starts_with($part, BLOCK_TAG_START))
                 $node = new BlockNode(substr($part, BLOCK_TAG_START_LEN, strlen($part)-BLOCK_TAG_LEN));
+            else if(str_starts_with($part, COMMENT_TAG_START))
+                $node = new CommentNode(substr($part, COMMENT_TAG_START_LEN, strlen($part)-COMMENT_TAG_LEN));
         } else {
             $node = new TextNode($part);
         }
