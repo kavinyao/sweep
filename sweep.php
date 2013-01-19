@@ -1,7 +1,11 @@
 <?php
+include_once('sweep.extra.php');
+
 // Template Element Definition
 define('INDEX_SEPARATOR', '.');
 define('ATTRIBUTE_SEPARATOR', ':');
+define('FILTER_SEPARATOR', '|');
+
 define('BLOCK_TAG_START', '{%');
 define('BLOCK_TAG_END', '%}');
 define('VARIABLE_TAG_START', '{{');
@@ -23,6 +27,21 @@ abstract class Node {
         'loop.index0' => '($loop_index)',
     );
 
+    private $builtin_filters = array(
+        // string filters
+        'upper' => 'strtoupper',
+        'lower' => 'strtolower',
+        'capfirst' => 'ucfirst',
+        'title' => 'ucwords',
+        'striptags' => 'strip_tags',
+        'urlencode' => 'urlencode',
+        'linkify' => 'sweep_linkify',
+        // array filters
+        'random' => 'sweep_array_random',
+        // strint or array filters
+        'length' => 'sweep_length',
+    );
+
     function __construct($content) {
         // trim $content by default
         // this is good for Block and Variable Tags
@@ -36,7 +55,22 @@ abstract class Node {
      * `ATTRIBUTE_SEPARATOR<attr>` is mapped to `->attr`
      * Predefined special variables like `loop.index` are handled as well.
      */
-    function compile_expression($expression) {
+    function compile_expression($raw_expression) {
+        // split variable from filters
+        $parts = explode(FILTER_SEPARATOR, $raw_expression);
+        $expression = $parts[0];
+        $filters = array_slice($parts, 1);
+
+        $expr_format = '%s';
+        // wrapping filters
+        foreach($filters as $filter) {
+            $function = $this->builtin_filters[$filter];
+            if(is_null($function))
+                throw new Exception("Unsupported filter $filter");
+            $expr_format = "{$function}({$expr_format})";
+        }
+
+        // process variable expression
         $attribute_pattern = sprintf('#(%s|%s)([^%s%s]+)#',
             preg_quote(INDEX_SEPARATOR),
             preg_quote(ATTRIBUTE_SEPARATOR),
@@ -45,7 +79,7 @@ abstract class Node {
         );
 
         if(isset($this->special_variables[$expression]))
-            return $this->special_variables[$expression];
+            return sprintf($expr_format, $this->special_variables[$expression]);
 
         $compiled_expression = preg_replace_callback($attribute_pattern, function($matches) {
             if($matches[1] === INDEX_SEPARATOR)
@@ -55,7 +89,7 @@ abstract class Node {
                 return "->{$matches[2]}";
         }, $expression);
 
-        return "\${$compiled_expression}";
+        return sprintf($expr_format, "\$$compiled_expression");
     }
 
     /**
@@ -96,7 +130,7 @@ class BlockNode extends Node {
         else if(count($parts) === 2 && $parts[0] === 'if')
             return sprintf('<?php if(%s): ?>', $this->compile_expression($parts[1]));
         else
-            throw new Exception;
+            throw new Exception("Unsupported block syntax.");
     }
 }
 
@@ -166,11 +200,12 @@ function str_starts_with($haystack, $needle)
 }
 
 // thanks: http://www.codediesel.com/php/quick-way-to-determine-if-php-is-running-at-the-command-line/
-function isCli() {
-     return php_sapi_name() == 'cli' && empty($_SERVER['REMOTE_ADDR']);
+function is_cli() {
+    return php_sapi_name() == 'cli' && empty($_SERVER['REMOTE_ADDR']);
 }
 
-if(isCli()) {
+// TODO: do this only if not included
+if(is_cli()) {
     if(count($argv) < 2) {
         printf("Usage: %s <template_file> [output_file]" . PHP_EOL, $argv[0]);
         exit(1);
