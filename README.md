@@ -12,7 +12,7 @@ Sweep is sweet php template.
 6. format output for readability[Done]
 7. documentation/usage examples
 8. improve performance
-9. use `preg_replace` instead of `preg_split`?
+9. use `preg_replace` instead of `preg_split`[Done]
 
 # Acknowledgement
 
