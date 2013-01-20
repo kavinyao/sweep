@@ -13,6 +13,7 @@ Sweep is sweet php template.
 7. documentation/usage examples
 8. improve performance
 9. use `preg_replace` instead of `preg_split`[Done]
+10. add namespace
 
 # Acknowledgement
 
