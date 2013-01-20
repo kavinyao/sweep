@@ -36,6 +36,7 @@ abstract class Node {
         'striptags' => 'strip_tags',
         'urlencode' => 'urlencode',
         'linkify' => 'sweep_linkify',
+        'escape' => 'htmlspecialchars',
         // array filters
         'random' => 'sweep_array_random',
         // strint or array filters
