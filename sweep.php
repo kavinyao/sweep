@@ -141,17 +141,18 @@ class CommentNode extends Node {
     }
 }
 
-class TextNode extends Node {
-    /**
-     * No trimming to keep text verbatim.
-     */
-    function __construct($content) {
-        $this->content = $content;
-    }
+function sweep_process_tag($matches) {
+    $statement = $matches[0];
+    if(str_starts_with($statement, VARIABLE_TAG_START))
+        $node = new VariableNode(substr($statement, VARIABLE_TAG_START_LEN, strlen($statement)-VARIABLE_TAG_LEN));
+    else if(str_starts_with($statement, BLOCK_TAG_START))
+        $node = new BlockNode(substr($statement, BLOCK_TAG_START_LEN, strlen($statement)-BLOCK_TAG_LEN));
+    else if(str_starts_with($statement, COMMENT_TAG_START))
+        $node = new CommentNode(substr($statement, COMMENT_TAG_START_LEN, strlen($statement)-COMMENT_TAG_LEN));
+    else
+        throw new Exception("Illegal tag statement `$statement`");
 
-    function compile() {
-        return $this->content;
-    }
+    return $node->compile();
 }
 
 /**
@@ -169,29 +170,8 @@ function sweep($template_string) {
     );
 
     // split template string to template tags and non-tags
-    $parts = preg_split($tag_pattern, $template_string, -1, PREG_SPLIT_DELIM_CAPTURE);
-
-    $is_tag = false;
-    $nodes = array_map(function($part) use (&$is_tag) {
-        if($is_tag) {
-            if(str_starts_with($part, VARIABLE_TAG_START))
-                $node = new VariableNode(substr($part, VARIABLE_TAG_START_LEN, strlen($part)-VARIABLE_TAG_LEN));
-            else if(str_starts_with($part, BLOCK_TAG_START))
-                $node = new BlockNode(substr($part, BLOCK_TAG_START_LEN, strlen($part)-BLOCK_TAG_LEN));
-            else if(str_starts_with($part, COMMENT_TAG_START))
-                $node = new CommentNode(substr($part, COMMENT_TAG_START_LEN, strlen($part)-COMMENT_TAG_LEN));
-        } else {
-            $node = new TextNode($part);
-        }
-
-        // toggle flag since tags and non-tags are interlaced one after another
-        $is_tag = !$is_tag;
-
-        return $node;
-    }, $parts);
-
-    $compiled_content = implode('', array_map(function($node) { return $node->compile(); }, $nodes));
-    return $compiled_content;
+    $compiled_template = preg_replace_callback($tag_pattern, 'sweep_process_tag', $template_string);
+    return $compiled_template;
 }
 
 // thanks: http://stackoverflow.com/q/834303/1240620
