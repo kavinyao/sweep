@@ -1,0 +1,36 @@
+{# This is example of sweep syntax #}
+<h1>{{ module.title|upper }}</h1>
+
+<p>{{ module.description|striptags|title }}</p>
+
+{{ this.is.a:contrived:example.usage:of.template:variable }}
+{{ another.contrived.0.usage.with.1.digits }}
+
+<h2>{{ module.items|length }} guests</h2>
+<ul>
+    {# Show all items #}
+    {% for item in module.items %}
+    <li><span>{{ loop.index }}</span> {{ item:name.family|lower|capfirst }}</li>
+    {% endfor %}
+</ul>
+
+{# List random authors `length` times #}
+{# and do some transformation, certainly #}
+<h2>Winners</h2>
+<ul>
+    {% for i in module.guests %}
+    <li>{{ loop.index0 }} - {{ module.guests|random|lower|upper|capfirst }}</li>
+    {% endfor %}
+</ul>
+
+{# escape example #}
+{{ module.html }}
+{{ module.html|escape }}
+
+{# This is important: #}
+{# otherwise we won't have a multi-line comment. #}
+{% if module.has_more %}
+<p>{{ more }}</p>
+{% else %}
+<p>No more content.</p>
+{% endif %}
