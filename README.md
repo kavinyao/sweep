@@ -46,6 +46,13 @@ Sweep currently supports `if` and `for` blocks:
 ... stuff if foo is evaluated as true
 {% endif %}
 ```
+
+```
+{% for item in collection %}
+... fiddle with item
+{% endfor %}
+```
+
 And of course you can have an optional `else` block:
 
 ```
@@ -56,15 +63,9 @@ And of course you can have an optional `else` block:
 {% endif %}
 ```
 
-```
-{% for item in collection %}
-... fiddle with item
-{% endfor %}
-```
-
 ### Comments
 
-You can use `{# ... #}` to include comments. The comments will be translated to PHP comments like `<php // ... ?>`.
+You can use `{# ... #}` to include comments. The comments translates to PHP comments like `<php // ... ?>`.
 
 ## Usage
 
