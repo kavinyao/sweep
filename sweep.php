@@ -52,7 +52,7 @@ abstract class Node {
     /**
      * Compile template expression to PHP expression.
      * `INDEX_SEPARATOR<key>` is mapped to `[key]` or `['key']` based on
-     * whether key is consisted of digits
+     * whether key consists of only digits
      * `ATTRIBUTE_SEPARATOR<attr>` is mapped to `->attr`
      * Predefined special variables like `loop.index` are handled as well.
      */
